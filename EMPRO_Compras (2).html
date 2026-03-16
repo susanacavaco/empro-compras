@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMPRO · Gestão de Compras Algarve</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, orderBy, query, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDMygnYzkYNG5YZpY8Hb4-HP7iDWBxOA7I",
+  authDomain: "empro-compras.firebaseapp.com",
+  projectId: "empro-compras",
+  storageBucket: "empro-compras.firebasestorage.app",
+  messagingSenderId: "540006567513",
+  appId: "1:540006567513:web:88e50585a171407985ab48"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+/* ── Exposed to global scope so main script can call ── */
+window._fbSaveOrder = async function(record) {
+  try {
+    await addDoc(collection(db, 'historico'), record);
+    return true;
+  } catch(e) { console.error('Firebase save error:', e); return false; }
+};
+
+window._fbLoadHistory = async function() {
+  try {
+    const q = query(collection(db, 'historico'), orderBy('timestamp', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({id: d.id, ...d.data()}));
+  } catch(e) { console.error('Firebase load error:', e); return []; }
+};
+
+/* Load history on startup */
+window.addEventListener('load', async () => {
+  const history = await window._fbLoadHistory();
+  window._renderHistory(history);
+});
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --navy: #1B3A6B;
+  --navy-dark: #0F2340;
+  --navy-light: #2A5298;
+  --orange: #E8640A;
+  --orange-light: #F97316;
+  --white: #FFFFFF;
+  --bg: #F8F9FC;
+  --bg2: #EEF1F8;
+  --border: #D4DAE8;
+  --text: #1A1D2E;
+  --text2: #5A6080;
+  --text3: #9AA0BB;
+  --red: #DC2626;
+  --red-bg: #FEF2F2;
+  --amber: #D97706;
+  --amber-bg: #FFFBEB;
+  --blue: #1D4ED8;
+  --blue-bg: #EFF6FF;
+  --green: #16A34A;
+  --green-bg: #F0FDF4;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(27,58,107,.08), 0 4px 16px rgba(27,58,107,.06);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+/* ── HEADER ── */
+.app-header {
+  background: var(--navy);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  background: var(--orange);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.5px;
+}
+.logo-text {
+  color: white;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.logo-divider { width: 1px; height: 20px; background: rgba(255,255,255,.2); }
+.logo-sub { color: rgba(255,255,255,.55); font-size: 12px; }
+.header-spacer { flex: 1; }
+.header-badge {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  color: rgba(255,255,255,.8);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── LAYOUT ── */
+.app-body { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+/* ── SECTION TITLE ── */
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+/* ── UPLOAD GRID ── */
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media(max-width:800px) { .upload-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:500px) { .upload-grid { grid-template-columns: 1fr; } }
+
+.upload-card {
+  background: var(--white);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .15s;
+  position: relative;
+  overflow: hidden;
+}
+.upload-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--border);
+  transition: background .2s;
+}
+.upload-card:hover { border-color: var(--navy-light); transform: translateY(-1px); }
+.upload-card:hover::before { background: var(--navy-light); }
+.upload-card.loaded { border-color: var(--green); border-style: solid; background: var(--green-bg); }
+.upload-card.loaded::before { background: var(--green); }
+.upload-card input { display: none; }
+
+.card-num {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.card-sub {
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text2);
+  transition: all .15s;
+  width: 100%;
+  justify-content: center;
+}
+.upload-card:hover .card-btn { background: var(--navy); color: white; border-color: var(--navy); }
+.upload-card.loaded .card-btn { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.file-name {
+  font-size: 10px;
+  color: var(--green);
+  font-weight: 500;
+  margin-top: 6px;
+  font-family: 'DM Mono', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── EXPORT INFO ── */
+.export-info {
+  background: var(--blue-bg);
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 24px;
+}
+.export-info h4 { font-size: 12px; font-weight: 600; color: var(--blue); margin-bottom: 8px; }
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 24px;
+}
+@media(max-width:600px) { .export-grid { grid-template-columns: 1fr; } }
+.export-row { font-size: 11px; color: #1E40AF; display: flex; gap: 6px; align-items: flex-start; }
+.export-dot { width: 5px; height: 5px; border-radius: 50%; background: #93C5FD; margin-top: 4px; flex-shrink: 0; }
+
+/* ── ACTION BAR ── */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+}
+.btn-run {
+  background: var(--navy);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  white-space: nowrap;
+}
+.btn-run:hover:not(:disabled) { background: var(--navy-light); transform: translateY(-1px); }
+.btn-run:disabled { background: var(--bg2); color: var(--text3); cursor: not-allowed; transform: none; }
+
+.progress-wrap { flex: 1; }
+.progress-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; }
+.progress-bar-bg { height: 5px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--navy), var(--orange)); border-radius: 3px; transition: width .4s ease; width: 0%; }
+
+/* ── KPI CARDS ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+@media(max-width:700px) { .kpi-row { grid-template-columns: 1fr 1fr; } }
+.kpi-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  border-left: 3px solid var(--border);
+}
+.kpi-card.red { border-left-color: var(--red); }
+.kpi-card.amber { border-left-color: var(--amber); }
+.kpi-card.blue { border-left-color: var(--blue); }
+.kpi-card.green { border-left-color: var(--green); }
+.kpi-card.navy { border-left-color: var(--navy); }
+.kpi-val { font-size: 26px; font-weight: 600; line-height: 1; margin-bottom: 3px; }
+.kpi-card.red .kpi-val { color: var(--red); }
+.kpi-card.amber .kpi-val { color: var(--amber); }
+.kpi-card.blue .kpi-val { color: var(--blue); }
+.kpi-card.green .kpi-val { color: var(--green); }
+.kpi-card.navy .kpi-val { color: var(--navy); }
+.kpi-lbl { font-size: 11px; color: var(--text2); font-weight: 500; }
+
+/* ── RESULTS HEADER ── */
+.results-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.results-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.spacer { flex: 1; }
+.btn-download {
+  background: var(--orange);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background .15s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.btn-download:hover { background: #d45a08; }
+.btn-reset {
+  background: var(--white);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-reset:hover { border-color: var(--navy); color: var(--navy); }
+
+/* ── TABLE ── */
+.table-container {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.table-scroll { overflow-x: auto; max-height: 540px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  background: var(--navy);
+  color: rgba(255,255,255,.9);
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid var(--bg2); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover td { background: var(--bg) !important; }
+tbody td { padding: 7px 12px; color: var(--text); vertical-align: middle; }
+
+.sup-row td {
+  background: #0F2744 !important;
+  color: rgba(255,255,255,.9) !important;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 8px 12px;
+  border-bottom: none;
+}
+.sup-val { color: var(--orange) !important; text-align: right; font-family: 'DM Mono', monospace; }
+.sup-flags { text-align: right; }
+
+td.num { text-align: right; font-family: 'DM Mono', monospace; font-size: 11px; }
+td.desc { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.art { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); }
+td.center { text-align: center; }
+td.stock-zero { color: var(--red) !important; font-weight: 600; }
+td.sug-val { font-weight: 600; color: var(--navy); text-align: right; font-family: 'DM Mono', monospace; }
+td.indent { padding-left: 24px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+.badge-rot { background: var(--red-bg); color: var(--red); }
+.badge-crit { background: var(--amber-bg); color: var(--amber); }
+.badge-enc { background: var(--blue-bg); color: var(--blue); }
+
+.confirm-s { color: var(--green); font-weight: 700; font-size: 13px; }
+
+.abc-badge {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 18px;
+  color: white;
+}
+.abc-a { background: var(--navy); }
+.abc-b { background: #2563EB; }
+.abc-c { background: #64748B; }
+
+/* ── FOOTER ── */
+.table-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--bg2);
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg);
+}
+
+/* ── EMPTY / HIDDEN ── */
+#results { display: none; }
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text3);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-title { font-size: 15px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+.empty-sub { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-logo">
+    <div class="logo-mark">EP</div>
+    <span class="logo-text">EMPRO</span>
+  </div>
+  <div class="logo-divider"></div>
+  <span class="logo-sub">Gestão de Compras · Algarve</span>
+  <div class="header-spacer"></div>
+  <span class="header-badge" id="week-badge">Semana —</span>
+</header>
+
+<div class="app-body">
+
+  <p class="section-title">Ficheiros de entrada</p>
+
+  <div class="upload-grid">
+    <div class="upload-card" id="zone1" onclick="document.getElementById('f1').click()">
+      <input type="file" id="f1" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 01</div>
+      <div class="card-title">Vendas Algarve 2025</div>
+      <div class="card-sub">Módulo Vendas → Algarve → Ano 2025 → Exportar Excel</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f1-name"></div>
+    </div>
+
+    <div class="upload-card" id="zone2" onclick="document.getElementById('f2').click()">
+      <input type="file" id="f2" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 02</div>
+      <div class="card-title">Vendas Algarve 2026</div>
+      <div class="card-sub">Mesmo módulo → Ano 2026 → Janeiro até hoje</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f2-name"></div>
+    </div>
+
+    <div class="upload-card" id="zone3" onclick="document.getElementById('f3').click()">
+      <input type="file" id="f3" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 03</div>
+      <div class="card-title">Stock atual</div>
+      <div class="card-sub">Módulo Stocks → Existências → Data de hoje → Exportar</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f3-name"></div>
+    </div>
+
+    <div class="upload-card" id="zone4" onclick="document.getElementById('f4').click()">
+      <input type="file" id="f4" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 04</div>
+      <div class="card-title">Encomendas abertas</div>
+      <div class="card-sub">Módulo Compras → Encomendas → "Por Entregar" → Exportar</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f4-name"></div>
+    </div>
+  </div>
+
+  <div class="export-info">
+    <h4>Colunas obrigatórias por ficheiro</h4>
+    <div class="export-grid">
+      <div class="export-row"><div class="export-dot"></div><span><b>Ficheiros 1 e 2:</b> Artigo, ArtigoDescricao, FornecedorNome, Quantidade, TotalIliquido, Data</span></div>
+      <div class="export-row"><div class="export-dot"></div><span><b>Ficheiro 3:</b> Artigo, Descrição, Stock, Custo (exportação padrão do Primavera)</span></div>
+      <div class="export-row"><div class="export-dot"></div><span><b>Ficheiro 4:</b> Análise Syslog com "Código e Descrição do Artigo" + "Qtd. Pendente Encomenda"</span></div>
+      <div class="export-row"><div class="export-dot"></div><span>Excluídas automaticamente: <b>famílias 00, 90, 99</b> · Cave Central da Bairrada · Lupulo Lusa · Quinta dos Santos · Segur Estates · Soc. Agrícola Barbosa · Viticale</span></div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <label style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:500">Stock segurança</label>
+      <select id="safety-days" onchange="onSafetyChange(parseInt(this.value))" style="padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white);cursor:pointer">
+        <option value="7">7 dias</option>
+        <option value="10">10 dias</option>
+        <option value="15" selected>15 dias</option>
+        <option value="21">21 dias (3 sem)</option>
+        <option value="30">30 dias</option>
+      </select>
+    </div>
+    <div style="width:1px;height:28px;background:var(--border)"></div>
+    <button class="btn-run" id="btn-run" onclick="runModel()" disabled>Calcular encomenda</button>
+    <div class="progress-wrap">
+      <div class="progress-label" id="prog-label">Carrega os 4 ficheiros para continuar</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar"></div></div>
+    </div>
+  </div>
+
+  <!-- HISTORY SECTION -->
+  <div id="history-section" style="margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <p class="section-title" style="margin:0">Histórico de encomendas</p>
+      <div id="history-sync" style="font-size:11px;color:var(--text3)">A carregar...</div>
+    </div>
+    <div id="history-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+      <div style="background:var(--bg2);border-radius:var(--radius);padding:14px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;min-height:80px">
+        <span style="font-size:12px;color:var(--text3)">Sem histórico ainda</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="results">
+
+    <!-- FILTER BAR -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <input type="text" id="filter-search" placeholder="Pesquisar artigo ou descrição..."
+        oninput="applyFilters()"
+        style="flex:1;min-width:180px;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px;font-family:'DM Sans',sans-serif">
+      <select id="filter-status" onchange="applyFilters()"
+        style="padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white)">
+        <option value="">Todos os status</option>
+        <option value="ROTURA">🔴 Rotura</option>
+        <option value="CRÍTICO">🟠 Crítico</option>
+        <option value="ENCOMENDAR">🔵 Encomendar</option>
+      </select>
+      <select id="filter-abc" onchange="applyFilters()"
+        style="padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white)">
+        <option value="">Todas as classes</option>
+        <option value="A">Classe A</option>
+        <option value="B">Classe B</option>
+        <option value="C">Classe C</option>
+      </select>
+      <select id="filter-forn" onchange="applyFilters()"
+        style="padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white);max-width:220px">
+        <option value="">Todos os fornecedores</option>
+      </select>
+      <button onclick="clearFilters()"
+        style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--white);color:var(--text2)">
+        Limpar filtros
+      </button>
+    </div>
+
+    <div id="alert-banner" style="display:none;margin-bottom:14px"></div>
+    <div class="kpi-row">
+      <div class="kpi-card red"><div class="kpi-val" id="k-rot">0</div><div class="kpi-lbl">Roturas</div></div>
+      <div class="kpi-card amber"><div class="kpi-val" id="k-crit">0</div><div class="kpi-lbl">Críticos</div></div>
+      <div class="kpi-card blue"><div class="kpi-val" id="k-enc">0</div><div class="kpi-lbl">A encomendar</div></div>
+      <div class="kpi-card navy"><div class="kpi-val" id="k-forn">0</div><div class="kpi-lbl">Fornecedores</div></div>
+      <div class="kpi-card green"><div class="kpi-val" id="k-val">€0</div><div class="kpi-lbl">Valor total</div></div>
+    </div>
+
+    <div class="results-header">
+      <div class="results-title">Lista de encomenda por fornecedor</div>
+      <div class="spacer"></div>
+      <button class="btn-reset" onclick="resetApp()">Nova semana</button>
+      <button class="btn-download" onclick="downloadExcel()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descarregar Excel
+      </button>
+      <button id="btn-save-history" onclick="saveToHistory()"
+        style="padding:8px 18px;border-radius:var(--radius-sm);border:1px solid var(--green);background:var(--green-bg);color:var(--green);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .15s">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13"/><polyline points="7 3 7 8 15 8"/></svg>
+        Guardar no histórico
+      </button>
+    </div>
+
+    <div class="table-container">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:30px">ABC</th>
+              <th style="width:95px">Cód. Artigo</th>
+              <th>Descrição</th>
+              <th style="width:75px;text-align:right">Stock</th>
+              <th style="width:75px;text-align:right">Enc. Aberto</th>
+              <th style="width:80px;text-align:right">Qtd. Enc.</th>
+              <th style="width:90px;text-align:right">Valor €</th>
+              <th style="width:90px;text-align:center">Status</th>
+              <th style="width:65px;text-align:center">Confirm.</th>
+              <th style="width:36px;text-align:center"></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div class="table-footer" id="table-footer"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const EXCLUIR_FAM  = ['00','90','99'];
+const EXCLUIR_FORN = ['CAVE CENTRAL DA BAIRRADA','LUPULO LUSA','QUINTA DOS SANTOS',
+                       'SEGUR ESTATES','SOCIEDADE AGRICOLA JOAO T.M. BARBOSA','VITICALE'];
+const WEEKS = [
+  {wk:0,month:3},{wk:1,month:3},{wk:2,month:4},
+  {wk:3,month:4},{wk:4,month:4},{wk:5,month:4}
+];
+
+let SAFETY_DAYS = 15;
+let cachedData  = null;
+let resultData  = null;
+let files = {};
+
+const now = new Date();
+document.getElementById('week-badge').textContent =
+  'Semana ' + now.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+/* ── File handling ──────────────────────────────────────────── */
+function setFile(id, file) {
+  files[id] = file;
+  document.getElementById('zone'+id).classList.add('loaded');
+  const nm = document.getElementById('f'+id+'-name');
+  nm.textContent = file.name.length > 28 ? file.name.substring(0,25)+'...' : file.name;
+  checkReady();
+}
+function checkReady() {
+  const ready = files[1] && files[2] && files[3] && files[4];
+  document.getElementById('btn-run').disabled = !ready;
+  if(ready) setLog('Pronto — clica em "Calcular encomenda"', 100);
+}
+function setLog(msg, pct) {
+  document.getElementById('prog-label').textContent = msg;
+  if(pct !== undefined) document.getElementById('prog-bar').style.width = pct+'%';
+}
+
+/* ── Helpers ────────────────────────────────────────────────── */
+function padArt(v) { return String(v||'').trim().replace(/\D/g,'').padStart(8,'0'); }
+function excFam(a) { return EXCLUIR_FAM.some(f=>a.startsWith(f)); }
+function excForn(fn) { return EXCLUIR_FORN.some(f=>String(fn||'').toUpperCase().includes(f)); }
+function readExcel(file) {
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = e => {
+      const wb = XLSX.read(e.target.result,{type:'array',cellDates:true});
+      res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{raw:false,defval:''}));
+    };
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+function findCol(row, patterns) {
+  if(!row) return null;
+  const keys = Object.keys(row);
+  for(const p of patterns) {
+    const f = keys.find(k=>new RegExp(p,'i').test(k));
+    if(f) return f;
+  }
+  return null;
+}
+
+/* ── Safety days selector triggers instant recalc ──────────── */
+function onSafetyChange(days) {
+  SAFETY_DAYS = days;
+  if(cachedData) applyAndRender(cachedData, false);
+}
+
+/* ── MAIN: read files → build previews → cache → render ────── */
+async function runModel() {
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('results').style.display = 'none';
+  try {
+    setLog('A ler ficheiros...', 5);
+    const [raw25, raw26, rawInv, rawEnc] = await Promise.all([
+      readExcel(files[1]), readExcel(files[2]), readExcel(files[3]), readExcel(files[4])
+    ]);
+
+    setLog('A filtrar artigos...', 18);
+    const r0 = raw25[0]||{};
+    const cQty25 = findCol(r0,['quantidade','qty'])||'Quantidade';
+    const cVal25 = findCol(r0,['totaliliquido','total'])||'TotalIliquido';
+    const cForn  = findCol(r0,['fornecedornome','fornecedor'])||'FornecedorNome';
+    const cDesc  = findCol(r0,['artigodescricao','descricao'])||'ArtigoDescricao';
+    const cData  = findCol(r0,['^data$'])||'Data';
+    const cArt   = findCol(r0,['^artigo$'])||'Artigo';
+
+    const v25 = raw25.map(r=>({
+      art:  padArt(r[cArt]),
+      desc: String(r[cDesc]||''),
+      forn: String(r[cForn]||''),
+      qty:  parseFloat(String(r[cQty25]).replace(',','.'))||0,
+      val:  parseFloat(String(r[cVal25]).replace(',','.'))||0,
+      mes:  (()=>{ const d=new Date(r[cData]); return isNaN(d.getTime())?0:d.getMonth()+1; })()
+    })).filter(r=>r.art.length===8 && !excFam(r.art) && !excForn(r.forn) && r.mes>0);
+
+    const r0b = raw26[0]||{};
+    const cQty26 = findCol(r0b,['quantidade','qty'])||'Quantidade';
+    const cForn2 = findCol(r0b,['fornecedornome','fornecedor'])||'FornecedorNome';
+    const cData2 = findCol(r0b,['^data$'])||'Data';
+    const cArt2  = findCol(r0b,['^artigo$'])||'Artigo';
+
+    const v26 = raw26.map(r=>({
+      art: padArt(r[cArt2]),
+      qty: parseFloat(String(r[cQty26]).replace(',','.'))||0,
+      mes: (()=>{ const d=new Date(r[cData2]); return isNaN(d.getTime())?0:d.getMonth()+1; })()
+    })).filter(r=>r.art.length===8 && !excFam(r.art)
+       && !EXCLUIR_FORN.some(f=>String(r[cForn2]||'').toUpperCase().includes(f))
+       && r.mes>0);
+
+    setLog('A calcular sazonalidade...', 35);
+    const mQty = {};
+    v25.forEach(r=>{ mQty[r.mes]=(mQty[r.mes]||0)+r.qty; });
+    const avgM = Object.values(mQty).reduce((a,b)=>a+b,0)/12||1;
+    const gIS = {};
+    for(let m=1;m<=12;m++) gIS[m]=(mQty[m]||0)/avgM;
+
+    const aMQ={}, aDesc={}, aForn={};
+    v25.forEach(r=>{
+      if(!aMQ[r.art]) aMQ[r.art]={};
+      aMQ[r.art][r.mes]=(aMQ[r.art][r.mes]||0)+r.qty;
+      aDesc[r.art]=r.desc; aForn[r.art]=r.forn;
+    });
+    const aMedia={};
+    Object.keys(aMQ).forEach(a=>{ aMedia[a]=Object.values(aMQ[a]).reduce((x,y)=>x+y,0)/12; });
+
+    setLog('A calcular tendência 2026...', 50);
+    const q1a={}, q1b={};
+    v25.filter(r=>r.mes<=3).forEach(r=>{ q1a[r.art]=(q1a[r.art]||0)+r.qty; });
+    v26.filter(r=>r.mes<=3).forEach(r=>{ q1b[r.art]=(q1b[r.art]||0)+r.qty; });
+    const gTrend = (Object.values(q1b).reduce((a,b)=>a+b,0))
+                  /(Object.values(q1a).reduce((a,b)=>a+b,0)||1);
+    const aTrend={};
+    Object.keys(q1a).forEach(a=>{
+      aTrend[a]=q1a[a]>0?Math.min(Math.max((q1b[a]||0)/q1a[a],0.2),4.0):gTrend;
+    });
+
+    setLog('A classificar ABC...', 62);
+    const aVal={};
+    v25.forEach(r=>{ aVal[r.art]=(aVal[r.art]||0)+r.val; });
+    const aSorted=Object.keys(aVal).sort((a,b)=>aVal[b]-aVal[a]);
+    const totVal=Object.values(aVal).reduce((a,b)=>a+b,0)||1;
+    const abcMap={};
+    let cum=0;
+    aSorted.forEach(a=>{ cum+=aVal[a]; abcMap[a]=cum/totVal<=0.8?'A':cum/totVal<=0.95?'B':'C'; });
+
+    setLog('A ler stock e encomendas...', 72);
+    const r0c=rawInv[0]||{};
+    const cStock=findCol(r0c,['^stock$','existencias'])||'Stock';
+    const cCusto=findCol(r0c,['custo'])||'Custo';
+    const cArtI =findCol(r0c,['^artigo$'])||'Artigo';
+    const invM={}, costM={};
+    rawInv.forEach(r=>{
+      const a=padArt(r[cArtI]);
+      if(a.length===8&&!excFam(a)){
+        invM[a]=(invM[a]||0)+(parseFloat(String(r[cStock]).replace(',','.'))||0);
+        if(!costM[a]) costM[a]=parseFloat(String(r[cCusto]).replace(',','.'))||0;
+      }
+    });
+
+    const encM={};
+    if(rawEnc.length>0){
+      const k=Object.keys(rawEnc[0]||{});
+      const kC=k.find(x=>/c.digo|artigo|descri/i.test(x));
+      const kQ=k.find(x=>/pendente|qtd|quant/i.test(x));
+      if(kC&&kQ) rawEnc.forEach(r=>{
+        const a=padArt(String(r[kC]||'').split(' - ')[0]);
+        if(a.length===8&&!excFam(a))
+          encM[a]=(encM[a]||0)+(parseFloat(String(r[kQ]).replace(',','.'))||0);
+      });
+    }
+
+    setLog('A calcular previsões...', 82);
+    const artPrev={};
+    aSorted.forEach(art=>{
+      const media=aMedia[art]||0, trend=aTrend[art]||gTrend;
+      const prevs={};
+      WEEKS.forEach(w=>{
+        const is=aMedia[art]>0?((aMQ[art]?aMQ[art][w.month]||0:0)/(aMedia[art]||1)):gIS[w.month];
+        prevs[w.wk]=Math.max(0,Math.round(media/4.33*is*trend));
+      });
+      artPrev[art]={
+        art, desc:aDesc[art]||'', forn:aForn[art]||'Sem Fornecedor',
+        abc:abcMap[art]||'C', stock:invM[art]||0, enc:encM[art]||0,
+        cost:costM[art]||0, prevs, maxPrev:Math.max(...Object.values(prevs),0),
+        val25:aVal[art]||0
+      };
+    });
+
+    cachedData = {artPrev, gTrend, aMQ, aMedia};
+    applyAndRender(cachedData, true);
+
+  } catch(e) {
+    setLog('Erro: '+e.message, 0);
+    document.getElementById('btn-run').disabled = false;
+    console.error(e);
+  }
+}
+
+/* ── RENDER: apply safety days and build table ──────────────── */
+function applyAndRender(data, firstRun) {
+  const {artPrev, gTrend, aMQ, aMedia} = data;
+  const results = [];
+
+  Object.values(artPrev).forEach(a=>{
+    const {art,desc,forn,abc,stock,enc,cost,prevs,maxPrev,val25} = a;
+    const prev0    = prevs[0]||0;
+    const stockSeg = Math.round(maxPrev*(SAFETY_DAYS/7));
+    const nec      = prev0+stockSeg-stock-enc;
+    const sug      = Math.max(0,Math.round(nec));
+    const val      = parseFloat((sug*cost).toFixed(2));
+    let st = 'OK';
+    if(stock===0&&prev0>0)           st='ROTURA';
+    else if(stock<stockSeg&&prev0>0) st='CRÍTICO';
+    else if(sug>0)                   st='ENCOMENDAR';
+    else if(stock>prev0*4&&prev0>0)  st='EXCESSO';
+    if(['ROTURA','CRÍTICO','ENCOMENDAR'].includes(st))
+      results.push({art,desc,forn,abc,stock,enc,sug,val,cost,st,prev0,stockSeg,val25});
+  });
+
+  results.sort((a,b)=>{
+    if(a.forn!==b.forn) return a.forn.localeCompare(b.forn,'pt');
+    const po={'ROTURA':1,'CRÍTICO':2,'ENCOMENDAR':3};
+    if(po[a.st]!==po[b.st]) return po[a.st]-po[b.st];
+    return b.val25-a.val25;
+  });
+
+  resultData = {results, gTrend};
+
+  const nR=results.filter(r=>r.st==='ROTURA').length;
+  const nC=results.filter(r=>r.st==='CRÍTICO').length;
+  const nE=results.filter(r=>r.st==='ENCOMENDAR').length;
+  const nF=new Set(results.map(r=>r.forn)).size;
+  const vT=results.reduce((s,r)=>s+r.val,0);
+
+  document.getElementById('k-rot').textContent  = nR;
+  document.getElementById('k-crit').textContent = nC;
+  document.getElementById('k-enc').textContent  = nE;
+  document.getElementById('k-forn').textContent = nF;
+  document.getElementById('k-val').textContent  = '€'+Math.round(vT).toLocaleString('pt-PT');
+
+  allResults = results;
+  cachedAMQ   = data.aMQ;
+  cachedAMedia = data.aMedia;
+  populateFornFilter(results);
+  renderTable(results);
+  showAlerts(results);
+
+  document.getElementById('table-footer').textContent =
+    `${results.length} artigos · ${nF} fornecedores · Stock segurança: ${SAFETY_DAYS} dias · `+
+    `Tendência 2026: ${Math.round(gTrend*100)}% vs 2025 · Excluídas: famílias 00/90/99 e 6 fornecedores`;
+
+  document.getElementById('results').style.display = 'block';
+  setLog('Pronto — stock segurança: '+SAFETY_DAYS+' dias', 100);
+  if(firstRun) document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ── Download Excel ─────────────────────────────────────────── */
+function downloadExcel() {
+  if(!resultData) return;
+  const {results, gTrend} = resultData;
+  const today = new Date().toLocaleDateString('pt-PT');
+  const wsData = [
+    ['EMPRO ALGARVE — LISTA DE ENCOMENDA — '+today],
+    ['Tendência 2026: '+Math.round(gTrend*100)+'%  |  Stock segurança: '+SAFETY_DAYS+' dias  |  Excluídas: famílias 00/90/99 e 6 fornecedores'],
+    [],
+    ['ABC','Cód. Artigo','Descrição','Fornecedor','Stock','Enc. Aberto','Prev Sem','Stock Seg.','Qtd. Enc.','Valor €','Custo Unit.','Status','Conf.?','Obs.']
+  ];
+  let curF=null;
+  results.forEach(r=>{
+    if(r.forn!==curF){
+      const sr=results.filter(x=>x.forn===r.forn);
+      wsData.push(['','','  ▶ '+r.forn+' ('+sr.length+' artigos)','','','','','','',
+        '€'+sr.reduce((s,x)=>s+x.val,0).toFixed(2),'','','','']);
+      curF=r.forn;
+    }
+    wsData.push([r.abc,r.art,r.desc,r.forn,r.stock,r.enc,r.prev0,r.stockSeg,
+      r.sug||0,r.val>0?r.val:0,r.cost,r.st,
+      ['ROTURA','CRÍTICO'].includes(r.st)?'S':'','']);
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:4},{wch:11},{wch:42},{wch:32},{wch:9},{wch:9},{wch:9},{wch:9},{wch:11},{wch:11},{wch:9},{wch:11},{wch:6},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'ENCOMENDA');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+    ['Indicador','Valor'],
+    ['Roturas',results.filter(r=>r.st==='ROTURA').length],
+    ['Críticos',results.filter(r=>r.st==='CRÍTICO').length],
+    ['A Encomendar',results.filter(r=>r.st==='ENCOMENDAR').length],
+    ['Total Artigos',results.length],
+    ['Fornecedores',new Set(results.map(r=>r.forn)).size],
+    ['Valor Total €',parseFloat(results.reduce((s,r)=>s+r.val,0).toFixed(2))],
+    ['Tendência 2026',Math.round(gTrend*100)+'%'],
+    ['Stock Segurança',SAFETY_DAYS+' dias'],
+    ['Gerado em',today]
+  ]),'RESUMO');
+  XLSX.writeFile(wb,'EMPRO_Encomenda_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+/* ── Reset ──────────────────────────────────────────────────── */
+function resetApp() {
+  files={}; resultData=null; cachedData=null;
+  ['1','2','3','4'].forEach(id=>{
+    document.getElementById('zone'+id).classList.remove('loaded');
+    document.getElementById('f'+id+'-name').textContent='';
+    document.getElementById('f'+id).value='';
+  });
+  document.getElementById('results').style.display='none';
+  document.getElementById('btn-run').disabled=true;
+  document.getElementById('prog-bar').style.width='0%';
+  setLog('Carrega os 4 ficheiros para continuar');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ── Filters ────────────────────────────────────────────────── */
+let allResults = [];
+
+function applyFilters() {
+  if(!allResults.length) return;
+  const search = document.getElementById('filter-search').value.toLowerCase().trim();
+  const status = document.getElementById('filter-status').value;
+  const abc    = document.getElementById('filter-abc').value;
+  const forn   = document.getElementById('filter-forn').value;
+
+  let filtered = allResults.filter(r=>{
+    if(status && r.st !== status) return false;
+    if(abc && r.abc !== abc) return false;
+    if(forn && r.forn !== forn) return false;
+    if(search && !r.art.includes(search) && !r.desc.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  renderTable(filtered);
+  const foot = `${filtered.length} artigos (filtrado de ${allResults.length}) · Stock segurança: ${SAFETY_DAYS} dias`;
+  document.getElementById('table-footer').textContent = foot;
+}
+
+function clearFilters() {
+  document.getElementById('filter-search').value = '';
+  document.getElementById('filter-status').value = '';
+  document.getElementById('filter-abc').value = '';
+  document.getElementById('filter-forn').value = '';
+  renderTable(allResults);
+  const nF = new Set(allResults.map(r=>r.forn)).size;
+  document.getElementById('table-footer').textContent =
+    `${allResults.length} artigos · ${nF} fornecedores · Stock segurança: ${SAFETY_DAYS} dias`;
+}
+
+function populateFornFilter(results) {
+  const sel = document.getElementById('filter-forn');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todos os fornecedores</option>';
+  const forns = [...new Set(results.map(r=>r.forn))].sort();
+  forns.forEach(f=>{
+    const opt = document.createElement('option');
+    opt.value = f; opt.textContent = f.substring(0,35)+(f.length>35?'...':'');
+    if(f===current) opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+
+/* ── Alerts ─────────────────────────────────────────────────── */
+function showAlerts(results) {
+  const banner = document.getElementById('alert-banner');
+  const alerts = [];
+
+  const rotA = results.filter(r=>r.st==='ROTURA'&&r.abc==='A');
+  if(rotA.length>0) alerts.push({
+    color:'#DC2626', bg:'#FEF2F2', icon:'🔴',
+    msg:`<b>${rotA.length} artigos Classe A em ROTURA</b> — impacto direto em 80% das vendas. Encomendar hoje.`
+  });
+
+  const critA = results.filter(r=>r.st==='CRÍTICO'&&r.abc==='A');
+  if(critA.length>0) alerts.push({
+    color:'#D97706', bg:'#FFFBEB', icon:'🟠',
+    msg:`<b>${critA.length} artigos Classe A em estado CRÍTICO</b> — stock abaixo de ${SAFETY_DAYS} dias. Encomendar esta semana.`
+  });
+
+  const valTotal = results.reduce((s,r)=>s+r.val,0);
+  if(valTotal>50000) alerts.push({
+    color:'#1D4ED8', bg:'#EFF6FF', icon:'💰',
+    msg:`Valor total de encomenda <b>€${Math.round(valTotal).toLocaleString('pt-PT')}</b> — acima de €50K. Validar com tesouraria antes de lançar.`
+  });
+
+  if(alerts.length===0){ banner.style.display='none'; return; }
+  banner.style.display='block';
+  banner.innerHTML = alerts.map(a=>
+    `<div style="background:${a.bg};border-left:3px solid ${a.color};padding:10px 14px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:6px;font-size:12px;color:${a.color}">
+      ${a.icon} ${a.msg}
+    </div>`
+  ).join('');
+}
+
+/* ── Seasonality chart ──────────────────────────────────────── */
+let cachedAMQ = null;
+let cachedAMedia = null;
+
+function showSeason(art, desc) {
+  if(!cachedAMQ||!cachedAMedia) return;
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const aMQ    = cachedAMQ[art]||{};
+  const media  = cachedAMedia[art]||0;
+
+  document.getElementById('seas-title').textContent = art+' — '+desc;
+  document.getElementById('seas-sub').textContent =
+    `Média mensal 2025: ${Math.round(media)} un  ·  Clica num mês para ver detalhes`;
+
+  const chart  = document.getElementById('seas-chart');
+  const labels = document.getElementById('seas-labels');
+  chart.innerHTML=''; labels.innerHTML='';
+
+  const isVals = months.map((_,i)=> media>0?((aMQ[i+1]||0)/media):0);
+  const maxIS  = Math.max(...isVals, 0.01);
+
+  isVals.forEach((is,i)=>{
+    const pct = Math.round((is/maxIS)*100);
+    const color = is>=1.5?'#E8640A':is>0?'#1B3A6B':'#D1D5DB';
+    const bar = document.createElement('div');
+    bar.style.cssText = `height:${pct}%;background:${color};border-radius:3px 3px 0 0;align-self:flex-end;transition:opacity .15s;cursor:default`;
+    bar.title = `${months[i]}: ${is.toFixed(2)}x (${Math.round(aMQ[i+1]||0)} un)`;
+    chart.appendChild(bar);
+
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:9px;text-align:center;color:var(--text3)';
+    lbl.textContent = months[i].substring(0,1);
+    labels.appendChild(lbl);
+  });
+
+  document.getElementById('seas-modal').style.display='flex';
+}
+
+/* ── Render table (extracted for filter reuse) ───────────────── */
+function renderTable(results) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  let curForn = null;
+
+  results.forEach(r=>{
+    if(r.forn!==curForn){
+      const sr=results.filter(x=>x.forn===r.forn);
+      const sv=sr.reduce((s,x)=>s+x.val,0);
+      const sR=sr.filter(x=>x.st==='ROTURA').length;
+      const sC=sr.filter(x=>x.st==='CRÍTICO').length;
+      const tr=document.createElement('tr'); tr.className='sup-row';
+      tr.innerHTML=
+        `<td colspan="7" style="padding:8px 12px;font-size:11px">
+           ${r.forn.substring(0,60)} <span style="opacity:.5;font-weight:400">(${sr.length} artigos)</span>
+         </td>
+         <td class="sup-val" style="padding:8px 12px;font-size:11px">€${Math.round(sv).toLocaleString('pt-PT')}</td>
+         <td style="padding:8px 12px;font-size:11px;text-align:right">
+           ${sR>0?`<span style="color:#FCA5A5">●${sR}</span> `:''}
+           ${sC>0?`<span style="color:#FCD34D">●${sC}</span>`:''}
+         </td>`;
+      tbody.appendChild(tr); curForn=r.forn;
+    }
+    const sc=r.st==='ROTURA'?'badge-rot':r.st==='CRÍTICO'?'badge-crit':'badge-enc';
+    const ac='abc-'+r.abc.toLowerCase();
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      `<td class="center"><span class="abc-badge ${ac}">${r.abc}</span></td>
+       <td class="art indent">${r.art}</td>
+       <td class="desc" title="${r.desc}">${r.desc}</td>
+       <td class="num ${r.stock===0?'stock-zero':''}">${r.stock.toLocaleString('pt-PT')}</td>
+       <td class="num" style="color:var(--text2)">${r.enc>0?r.enc.toLocaleString('pt-PT'):'—'}</td>
+       <td class="sug-val">${r.sug>0?r.sug.toLocaleString('pt-PT'):'—'}</td>
+       <td class="num">${r.val>0?'€'+r.val.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td>
+       <td class="center"><span class="badge ${sc}">${r.st}</span></td>
+       <td class="center"><span class="confirm-s">${['ROTURA','CRÍTICO'].includes(r.st)?'S':''}</span></td>
+       <td class="center"><span onclick="showSeason('${r.art}','${r.desc.replace(/'/g,'').replace(/"/g,'')}')" style="cursor:pointer;font-size:13px;opacity:.5" title="Ver sazonalidade">📈</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ── History ────────────────────────────────────────────────── */
+async function saveToHistory() {
+  if(!resultData || !resultData.results.length) return;
+  const btn = document.getElementById('btn-save-history');
+  btn.textContent = '⏳ A guardar...';
+  btn.disabled = true;
+
+  const {results, gTrend} = resultData;
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const weekLabel = `Semana ${dateStr}`;
+
+  const bySupplier = {};
+  results.forEach(r => {
+    if(!bySupplier[r.forn]) bySupplier[r.forn] = {forn:r.forn, arts:0, val:0, roturas:0, criticos:0};
+    bySupplier[r.forn].arts++;
+    bySupplier[r.forn].val += r.val;
+    if(r.st==='ROTURA') bySupplier[r.forn].roturas++;
+    if(r.st==='CRÍTICO') bySupplier[r.forn].criticos++;
+  });
+
+  const record = {
+    timestamp: Date.now(),
+    weekLabel,
+    dateStr,
+    safetyDays: SAFETY_DAYS,
+    trend: Math.round(gTrend*100),
+    totalArts: results.length,
+    totalForn: Object.keys(bySupplier).length,
+    totalVal: parseFloat(results.reduce((s,r)=>s+r.val,0).toFixed(2)),
+    roturas: results.filter(r=>r.st==='ROTURA').length,
+    criticos: results.filter(r=>r.st==='CRÍTICO').length,
+    encomendar: results.filter(r=>r.st==='ENCOMENDAR').length,
+    suppliers: Object.values(bySupplier),
+    articles: results.map(r=>({
+      art:r.art, desc:r.desc, forn:r.forn, abc:r.abc,
+      stock:r.stock, sug:r.sug, val:r.val, st:r.st
+    }))
+  };
+
+  const saved = window._fbSaveOrder ? await window._fbSaveOrder(record) : false;
+
+  if(saved) {
+    btn.textContent = '✓ Guardado!';
+    btn.style.background = 'var(--green)';
+    btn.style.color = 'white';
+    setTimeout(async () => {
+      btn.textContent = '💾 Guardar no histórico';
+      btn.style.background = 'var(--green-bg)';
+      btn.style.color = 'var(--green)';
+      btn.disabled = false;
+      const history = await window._fbLoadHistory();
+      window._renderHistory(history);
+    }, 2000);
+  } else {
+    btn.textContent = '⚠ Erro — tenta de novo';
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = '💾 Guardar no histórico'; }, 3000);
+  }
+}
+
+window._renderHistory = function(history) {
+  const el = document.getElementById('history-list');
+  const sync = document.getElementById('history-sync');
+  if(!el) return;
+
+  sync.textContent = history.length > 0
+    ? `${history.length} semana${history.length>1?'s':''} guardada${history.length>1?'s':''}`
+    : 'Sem histórico';
+
+  if(!history.length) {
+    el.innerHTML = `<div style="background:var(--bg2);border-radius:var(--radius);padding:14px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;min-height:80px">
+      <span style="font-size:12px;color:var(--text3)">Sem histórico ainda — calcula e guarda a primeira encomenda</span>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = history.map((h,i) => {
+    const isFirst = i === 0;
+    return `<div onclick="showHistoryDetail('${h.id}')"
+      style="background:var(--white);border:1px solid ${isFirst?'var(--navy)':'var(--border)'};border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color .15s;${isFirst?'box-shadow:0 0 0 3px rgba(27,58,107,.08)':''}">
+      <div style="font-size:11px;font-weight:600;color:var(--navy);margin-bottom:6px">${h.weekLabel||h.dateStr}</div>
+      <div style="font-size:20px;font-weight:600;color:var(--text);margin-bottom:4px">€${Math.round(h.totalVal).toLocaleString('pt-PT')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        ${h.roturas>0?`<span style="background:var(--red-bg);color:var(--red);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600">🔴 ${h.roturas}</span>`:''}
+        ${h.criticos>0?`<span style="background:var(--amber-bg);color:var(--amber);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600">🟠 ${h.criticos}</span>`:''}
+      </div>
+      <div style="font-size:10px;color:var(--text3)">${h.totalArts} artigos · ${h.totalForn} fornecedores · ${h.safetyDays}d seg.</div>
+    </div>`;
+  }).join('');
+
+  window._historyData = {};
+  history.forEach(h => { window._historyData[h.id] = h; });
+};
+
+window._historyData = {};
+
+function showHistoryDetail(id) {
+  const h = window._historyData[id];
+  if(!h) return;
+
+  document.getElementById('hist-modal-title').textContent = h.weekLabel || h.dateStr;
+  document.getElementById('hist-modal-sub').textContent =
+    `${h.totalArts} artigos · ${h.totalForn} fornecedores · Stock segurança: ${h.safetyDays} dias · Tendência: ${h.trend}%`;
+
+  const byForn = {};
+  (h.articles||[]).forEach(a => {
+    if(!byForn[a.forn]) byForn[a.forn] = [];
+    byForn[a.forn].push(a);
+  });
+
+  let bodyHtml = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="background:var(--red-bg);border-radius:var(--radius-sm);padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:600;color:var(--red)">${h.roturas}</div>
+        <div style="font-size:10px;color:var(--red)">Roturas</div>
+      </div>
+      <div style="background:var(--amber-bg);border-radius:var(--radius-sm);padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:600;color:var(--amber)">${h.criticos}</div>
+        <div style="font-size:10px;color:var(--amber)">Críticos</div>
+      </div>
+      <div style="background:var(--blue-bg);border-radius:var(--radius-sm);padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:600;color:var(--blue)">${h.encomendar}</div>
+        <div style="font-size:10px;color:var(--blue)">Encomendar</div>
+      </div>
+      <div style="background:var(--green-bg);border-radius:var(--radius-sm);padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:600;color:var(--green)">€${Math.round(h.totalVal).toLocaleString('pt-PT')}</div>
+        <div style="font-size:10px;color:var(--green)">Total</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr>
+          <th style="background:var(--navy);color:white;padding:7px 10px;text-align:left">Fornecedor</th>
+          <th style="background:var(--navy);color:white;padding:7px 10px;text-align:center">Arts.</th>
+          <th style="background:var(--navy);color:white;padding:7px 10px;text-align:right">Valor €</th>
+          <th style="background:var(--navy);color:white;padding:7px 10px;text-align:center">Roturas</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  Object.entries(byForn).sort((a,b)=>
+    b[1].reduce((s,x)=>s+x.val,0) - a[1].reduce((s,x)=>s+x.val,0)
+  ).forEach(([forn, arts], i) => {
+    const fVal = arts.reduce((s,a)=>s+a.val,0);
+    const fRot = arts.filter(a=>a.st==='ROTURA').length;
+    bodyHtml += `<tr style="border-bottom:1px solid var(--bg2);background:${i%2===0?'var(--bg)':'white'}">
+      <td style="padding:6px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${forn.substring(0,40)}</td>
+      <td style="padding:6px 10px;text-align:center">${arts.length}</td>
+      <td style="padding:6px 10px;text-align:right;font-family:'DM Mono',monospace">€${Math.round(fVal).toLocaleString('pt-PT')}</td>
+      <td style="padding:6px 10px;text-align:center">${fRot>0?`<span style="color:var(--red);font-weight:600">${fRot}</span>`:''}</td>
+    </tr>`;
+  });
+
+  bodyHtml += '</tbody></table>';
+  document.getElementById('hist-modal-body').innerHTML = bodyHtml;
+  document.getElementById('hist-modal').style.display = 'flex';
+}
+
+/* ── File input listeners ───────────────────────────────────── */
+['1','2','3','4'].forEach(id=>{
+  document.getElementById('f'+id).addEventListener('change',e=>{
+    if(e.target.files[0]) setFile(id, e.target.files[0]);
+  });
+});
+</script>
+
+<!-- HISTORY DETAIL MODAL -->
+<div id="hist-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--white);border-radius:var(--radius);padding:24px;max-width:700px;width:92%;max-height:80vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('hist-modal').style.display='none'"
+      style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2)">×</button>
+    <div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:4px" id="hist-modal-title">—</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:16px" id="hist-modal-sub">—</div>
+    <div id="hist-modal-body"></div>
+  </div>
+</div>
+
+<!-- SEASONALITY MODAL -->
+<div id="seas-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center">
+  <div style="background:var(--white);border-radius:var(--radius);padding:24px;max-width:560px;width:90%;position:relative">
+    <button onclick="document.getElementById('seas-modal').style.display='none'"
+      style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2)">×</button>
+    <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px" id="seas-title">—</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:16px" id="seas-sub">Índice sazonal por mês — base 2025</div>
+    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:6px;align-items:end;height:120px" id="seas-chart"></div>
+    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:6px;margin-top:4px" id="seas-labels"></div>
+    <div style="margin-top:14px;font-size:11px;color:var(--text2)">
+      <span style="display:inline-block;width:10px;height:10px;background:#E8640A;border-radius:2px;margin-right:4px"></span>Pico ≥ 1.5x
+      <span style="display:inline-block;width:10px;height:10px;background:#1B3A6B;border-radius:2px;margin:0 4px 0 12px"></span>Normal
+      <span style="display:inline-block;width:10px;height:10px;background:#D1D5DB;border-radius:2px;margin:0 4px 0 12px"></span>Sem dados
+    </div>
+  </div>
+</div>
+</body>
+</html>
