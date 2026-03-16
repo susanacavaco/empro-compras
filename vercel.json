@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "routes": [
+    { "src": "/", "dest": "/EMPRO_Compras.html" },
+    { "src": "/(.*)", "dest": "/EMPRO_Compras.html" }
+  ]
+}
