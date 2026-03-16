@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMPRO · Gestão de Compras Algarve</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --navy: #1B3A6B;
+  --navy-dark: #0F2340;
+  --navy-light: #2A5298;
+  --orange: #E8640A;
+  --orange-light: #F97316;
+  --white: #FFFFFF;
+  --bg: #F8F9FC;
+  --bg2: #EEF1F8;
+  --border: #D4DAE8;
+  --text: #1A1D2E;
+  --text2: #5A6080;
+  --text3: #9AA0BB;
+  --red: #DC2626;
+  --red-bg: #FEF2F2;
+  --amber: #D97706;
+  --amber-bg: #FFFBEB;
+  --blue: #1D4ED8;
+  --blue-bg: #EFF6FF;
+  --green: #16A34A;
+  --green-bg: #F0FDF4;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(27,58,107,.08), 0 4px 16px rgba(27,58,107,.06);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+/* ── HEADER ── */
+.app-header {
+  background: var(--navy);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  background: var(--orange);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.5px;
+}
+.logo-text {
+  color: white;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.logo-divider { width: 1px; height: 20px; background: rgba(255,255,255,.2); }
+.logo-sub { color: rgba(255,255,255,.55); font-size: 12px; }
+.header-spacer { flex: 1; }
+.header-badge {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  color: rgba(255,255,255,.8);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── LAYOUT ── */
+.app-body { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+/* ── SECTION TITLE ── */
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+/* ── UPLOAD GRID ── */
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media(max-width:800px) { .upload-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:500px) { .upload-grid { grid-template-columns: 1fr; } }
+
+.upload-card {
+  background: var(--white);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .15s;
+  position: relative;
+  overflow: hidden;
+}
+.upload-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--border);
+  transition: background .2s;
+}
+.upload-card:hover { border-color: var(--navy-light); transform: translateY(-1px); }
+.upload-card:hover::before { background: var(--navy-light); }
+.upload-card.loaded { border-color: var(--green); border-style: solid; background: var(--green-bg); }
+.upload-card.loaded::before { background: var(--green); }
+.upload-card input { display: none; }
+
+.card-num {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.card-sub {
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text2);
+  transition: all .15s;
+  width: 100%;
+  justify-content: center;
+}
+.upload-card:hover .card-btn { background: var(--navy); color: white; border-color: var(--navy); }
+.upload-card.loaded .card-btn { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.file-name {
+  font-size: 10px;
+  color: var(--green);
+  font-weight: 500;
+  margin-top: 6px;
+  font-family: 'DM Mono', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── EXPORT INFO ── */
+.export-info {
+  background: var(--blue-bg);
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 24px;
+}
+.export-info h4 { font-size: 12px; font-weight: 600; color: var(--blue); margin-bottom: 8px; }
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 24px;
+}
+@media(max-width:600px) { .export-grid { grid-template-columns: 1fr; } }
+.export-row { font-size: 11px; color: #1E40AF; display: flex; gap: 6px; align-items: flex-start; }
+.export-dot { width: 5px; height: 5px; border-radius: 50%; background: #93C5FD; margin-top: 4px; flex-shrink: 0; }
+
+/* ── ACTION BAR ── */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+}
+.btn-run {
+  background: var(--navy);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  white-space: nowrap;
+}
+.btn-run:hover:not(:disabled) { background: var(--navy-light); transform: translateY(-1px); }
+.btn-run:disabled { background: var(--bg2); color: var(--text3); cursor: not-allowed; transform: none; }
+
+.progress-wrap { flex: 1; }
+.progress-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; }
+.progress-bar-bg { height: 5px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--navy), var(--orange)); border-radius: 3px; transition: width .4s ease; width: 0%; }
+
+/* ── KPI CARDS ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+@media(max-width:700px) { .kpi-row { grid-template-columns: 1fr 1fr; } }
+.kpi-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  border-left: 3px solid var(--border);
+}
+.kpi-card.red { border-left-color: var(--red); }
+.kpi-card.amber { border-left-color: var(--amber); }
+.kpi-card.blue { border-left-color: var(--blue); }
+.kpi-card.green { border-left-color: var(--green); }
+.kpi-card.navy { border-left-color: var(--navy); }
+.kpi-val { font-size: 26px; font-weight: 600; line-height: 1; margin-bottom: 3px; }
+.kpi-card.red .kpi-val { color: var(--red); }
+.kpi-card.amber .kpi-val { color: var(--amber); }
+.kpi-card.blue .kpi-val { color: var(--blue); }
+.kpi-card.green .kpi-val { color: var(--green); }
+.kpi-card.navy .kpi-val { color: var(--navy); }
+.kpi-lbl { font-size: 11px; color: var(--text2); font-weight: 500; }
+
+/* ── RESULTS HEADER ── */
+.results-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.results-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.spacer { flex: 1; }
+.btn-download {
+  background: var(--orange);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background .15s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.btn-download:hover { background: #d45a08; }
+.btn-reset {
+  background: var(--white);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-reset:hover { border-color: var(--navy); color: var(--navy); }
+
+/* ── TABLE ── */
+.table-container {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.table-scroll { overflow-x: auto; max-height: 540px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  background: var(--navy);
+  color: rgba(255,255,255,.9);
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid var(--bg2); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover td { background: var(--bg) !important; }
+tbody td { padding: 7px 12px; color: var(--text); vertical-align: middle; }
+
+.sup-row td {
+  background: #0F2744 !important;
+  color: rgba(255,255,255,.9) !important;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 8px 12px;
+  border-bottom: none;
+}
+.sup-val { color: var(--orange) !important; text-align: right; font-family: 'DM Mono', monospace; }
+.sup-flags { text-align: right; }
+
+td.num { text-align: right; font-family: 'DM Mono', monospace; font-size: 11px; }
+td.desc { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.art { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); }
+td.center { text-align: center; }
+td.stock-zero { color: var(--red) !important; font-weight: 600; }
+td.sug-val { font-weight: 600; color: var(--navy); text-align: right; font-family: 'DM Mono', monospace; }
+td.indent { padding-left: 24px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+.badge-rot { background: var(--red-bg); color: var(--red); }
+.badge-crit { background: var(--amber-bg); color: var(--amber); }
+.badge-enc { background: var(--blue-bg); color: var(--blue); }
+
+.confirm-s { color: var(--green); font-weight: 700; font-size: 13px; }
+
+.abc-badge {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 18px;
+  color: white;
+}
+.abc-a { background: var(--navy); }
+.abc-b { background: #2563EB; }
+.abc-c { background: #64748B; }
+
+/* ── FOOTER ── */
+.table-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--bg2);
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg);
+}
+
+/* ── EMPTY / HIDDEN ── */
+#results { display: none; }
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text3);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-title { font-size: 15px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+.empty-sub { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-logo">
+    <div class="logo-mark">EP</div>
+    <span class="logo-text">EMPRO</span>
+  </div>
+  <div class="logo-divider"></div>
+  <span class="logo-sub">Gestão de Compras · Algarve</span>
+  <div class="header-spacer"></div>
+  <span class="header-badge" id="week-badge">Semana —</span>
+</header>
+
+<div class="app-body">
+
+  <p class="section-title">Ficheiros de entrada</p>
+
+  <div class="upload-grid">
+    <div class="upload-card" id="zone1" onclick="document.getElementById('f1').click()">
+      <input type="file" id="f1" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 01</div>
+      <div class="card-title">Vendas Algarve 2025</div>
+      <div class="card-sub">Módulo Vendas → Algarve → Ano 2025 → Exportar Excel</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f1-name"></div>
+    </div>
+
+    <div class="upload-card" id="zone2" onclick="document.getElementById('f2').click()">
+      <input type="file" id="f2" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 02</div>
+      <div class="card-title">Vendas Algarve 2026</div>
+      <div class="card-sub">Mesmo módulo → Ano 2026 → Janeiro até hoje</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f2-name"></div>
+    </div>
+
+    <div class="upload-card" id="zone3" onclick="document.getElementById('f3').click()">
+      <input type="file" id="f3" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 03</div>
+      <div class="card-title">Stock atual</div>
+      <div class="card-sub">Módulo Stocks → Existências → Data de hoje → Exportar</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f3-name"></div>
+    </div>
+
+    <div class="upload-card" id="zone4" onclick="document.getElementById('f4').click()">
+      <input type="file" id="f4" accept=".xlsx,.xls">
+      <div class="card-num">Ficheiro 04</div>
+      <div class="card-title">Encomendas abertas</div>
+      <div class="card-sub">Módulo Compras → Encomendas → "Por Entregar" → Exportar</div>
+      <div class="card-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Carregar ficheiro
+      </div>
+      <div class="file-name" id="f4-name"></div>
+    </div>
+  </div>
+
+  <div class="export-info">
+    <h4>Colunas obrigatórias por ficheiro</h4>
+    <div class="export-grid">
+      <div class="export-row"><div class="export-dot"></div><span><b>Ficheiros 1 e 2:</b> Artigo, ArtigoDescricao, FornecedorNome, Quantidade, TotalIliquido, Data</span></div>
+      <div class="export-row"><div class="export-dot"></div><span><b>Ficheiro 3:</b> Artigo, Descrição, Stock, Custo (exportação padrão do Primavera)</span></div>
+      <div class="export-row"><div class="export-dot"></div><span><b>Ficheiro 4:</b> Análise Syslog com "Código e Descrição do Artigo" + "Qtd. Pendente Encomenda"</span></div>
+      <div class="export-row"><div class="export-dot"></div><span>Excluídas automaticamente: <b>famílias 00, 90, 99</b> · Cave Central da Bairrada · Lupulo Lusa · Quinta dos Santos · Segur Estates · Soc. Agrícola Barbosa · Viticale</span></div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <label style="font-size:12px;color:var(--text2);white-space:nowrap;font-weight:500">Stock segurança</label>
+      <select id="safety-days" onchange="SAFETY_DAYS=parseInt(this.value)" style="padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white);cursor:pointer">
+        <option value="7">7 dias</option>
+        <option value="10">10 dias</option>
+        <option value="15" selected>15 dias</option>
+        <option value="21">21 dias (3 sem)</option>
+        <option value="30">30 dias</option>
+      </select>
+    </div>
+    <div style="width:1px;height:28px;background:var(--border)"></div>
+    <button class="btn-run" id="btn-run" onclick="runModel()" disabled>Calcular encomenda</button>
+    <div class="progress-wrap">
+      <div class="progress-label" id="prog-label">Carrega os 4 ficheiros para continuar</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar"></div></div>
+    </div>
+  </div>
+
+  <div id="results">
+    <div class="kpi-row">
+      <div class="kpi-card red"><div class="kpi-val" id="k-rot">0</div><div class="kpi-lbl">Roturas</div></div>
+      <div class="kpi-card amber"><div class="kpi-val" id="k-crit">0</div><div class="kpi-lbl">Críticos</div></div>
+      <div class="kpi-card blue"><div class="kpi-val" id="k-enc">0</div><div class="kpi-lbl">A encomendar</div></div>
+      <div class="kpi-card navy"><div class="kpi-val" id="k-forn">0</div><div class="kpi-lbl">Fornecedores</div></div>
+      <div class="kpi-card green"><div class="kpi-val" id="k-val">€0</div><div class="kpi-lbl">Valor total</div></div>
+    </div>
+
+    <div class="results-header">
+      <div class="results-title">Lista de encomenda por fornecedor</div>
+      <div class="spacer"></div>
+      <button class="btn-reset" onclick="resetApp()">Nova semana</button>
+      <button class="btn-download" onclick="downloadExcel()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descarregar Excel
+      </button>
+    </div>
+
+    <div class="table-container">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:30px">ABC</th>
+              <th style="width:95px">Cód. Artigo</th>
+              <th>Descrição</th>
+              <th style="width:75px;text-align:right">Stock</th>
+              <th style="width:75px;text-align:right">Enc. Aberto</th>
+              <th style="width:80px;text-align:right">Qtd. Enc.</th>
+              <th style="width:90px;text-align:right">Valor €</th>
+              <th style="width:90px;text-align:center">Status</th>
+              <th style="width:65px;text-align:center">Confirm.</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div class="table-footer" id="table-footer"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let SAFETY_DAYS = 15;
+const EXCLUIR_FAM  = ['00','90','99'];
+const EXCLUIR_FORN = ['CAVE CENTRAL DA BAIRRADA','LUPULO LUSA','QUINTA DOS SANTOS',
+                       'SEGUR ESTATES','SOCIEDADE AGRICOLA JOAO T.M. BARBOSA','VITICALE'];
+const WEEKS = [
+  {wk:0,lbl:'Sem 1',month:3},{wk:1,lbl:'Sem 2',month:3},
+  {wk:2,lbl:'Sem 3',month:4},{wk:3,lbl:'Sem 4',month:4},
+  {wk:4,lbl:'Sem 5',month:4},{wk:5,lbl:'Sem 6',month:4}
+];
+
+let files = {};
+let resultData = null;
+
+// Set current week in header
+const now = new Date();
+const weekStr = now.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'});
+document.getElementById('week-badge').textContent = 'Semana ' + weekStr;
+
+function setFile(id, file) {
+  files[id] = file;
+  document.getElementById('zone'+id).classList.add('loaded');
+  const nm = document.getElementById('f'+id+'-name');
+  nm.textContent = file.name.length > 28 ? file.name.substring(0,25)+'...' : file.name;
+  checkReady();
+}
+
+function checkReady() {
+  const ready = files[1] && files[2] && files[3] && files[4];
+  document.getElementById('btn-run').disabled = !ready;
+  if(ready) setLog('Pronto — clica em "Calcular encomenda"', 100, false);
+}
+
+function setLog(msg, pct, show) {
+  document.getElementById('prog-label').textContent = msg;
+  if(pct !== undefined) document.getElementById('prog-bar').style.width = pct+'%';
+}
+
+function padArt(v) {
+  const s = String(v||'').trim();
+  const digits = s.replace(/\D/g,'');
+  return digits.padStart(8,'0');
+}
+function excFam(a) { return EXCLUIR_FAM.some(f=>a.startsWith(f)); }
+function excForn(fn) { return EXCLUIR_FORN.some(f=>String(fn||'').toUpperCase().includes(f)); }
+
+function readExcel(file) {
+  return new Promise((res,rej)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      res(XLSX.utils.sheet_to_json(ws,{raw:false,defval:''}));
+    };
+    reader.onerror = rej;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function findCol(row, patterns) {
+  if(!row) return null;
+  const keys = Object.keys(row);
+  for(const p of patterns) {
+    const found = keys.find(k=>new RegExp(p,'i').test(k));
+    if(found) return found;
+  }
+  return null;
+}
+
+async function runModel() {
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('results').style.display = 'none';
+  setLog('A ler ficheiros...', 5);
+
+  try {
+    const [raw25, raw26, rawInv, rawEnc] = await Promise.all([
+      readExcel(files[1]), readExcel(files[2]), readExcel(files[3]), readExcel(files[4])
+    ]);
+
+    setLog('A limpar artigos (famílias 00, 90, 99)...', 18);
+
+    const r0_25 = raw25[0]||{};
+    const colQty25  = findCol(r0_25,['quantidade','qty']) || 'Quantidade';
+    const colVal25  = findCol(r0_25,['totaliiliquido','totaliliquido','total']) || 'TotalIliquido';
+    const colForn25 = findCol(r0_25,['fornecedornome','fornecedor']) || 'FornecedorNome';
+    const colDesc25 = findCol(r0_25,['artigodescricao','descricao']) || 'ArtigoDescricao';
+    const colData25 = findCol(r0_25,['^data$','date']) || 'Data';
+    const colArt25  = findCol(r0_25,['^artigo$','art']) || 'Artigo';
+
+    const v25 = raw25.map(r=>({
+      art: padArt(r[colArt25]),
+      desc: String(r[colDesc25]||''),
+      forn: String(r[colForn25]||''),
+      qty: parseFloat(String(r[colQty25]).replace(',','.')) || 0,
+      val: parseFloat(String(r[colVal25]).replace(',','.')) || 0,
+      mes: (()=>{ const d=new Date(r[colData25]); return isNaN(d.getTime())?0:d.getMonth()+1; })()
+    })).filter(r=>r.art.length===8 && !excFam(r.art) && !excForn(r.forn) && r.mes>0);
+
+    const r0_26 = raw26[0]||{};
+    const colQty26  = findCol(r0_26,['quantidade','qty']) || 'Quantidade';
+    const colForn26 = findCol(r0_26,['fornecedornome','fornecedor']) || 'FornecedorNome';
+    const colData26 = findCol(r0_26,['^data$','date']) || 'Data';
+    const colArt26  = findCol(r0_26,['^artigo$','art']) || 'Artigo';
+
+    const v26 = raw26.map(r=>({
+      art: padArt(r[colArt26]),
+      forn: String(r[colForn26]||''),
+      qty: parseFloat(String(r[colQty26]).replace(',','.')) || 0,
+      mes: (()=>{ const d=new Date(r[colData26]); return isNaN(d.getTime())?0:d.getMonth()+1; })()
+    })).filter(r=>r.art.length===8 && !excFam(r.art) && !excForn(r.forn) && r.mes>0);
+
+    setLog('A calcular sazonalidade Algarve...', 35);
+
+    const monthQty = {};
+    v25.forEach(r=>{ monthQty[r.mes]=(monthQty[r.mes]||0)+r.qty; });
+    const avgM = Object.values(monthQty).reduce((a,b)=>a+b,0)/12 || 1;
+    const globalIS = {};
+    for(let m=1;m<=12;m++) globalIS[m]=(monthQty[m]||0)/avgM;
+
+    const artMonthQty = {}, artDescMap = {}, artFornMap = {};
+    v25.forEach(r=>{
+      if(!artMonthQty[r.art]) artMonthQty[r.art]={};
+      artMonthQty[r.art][r.mes]=(artMonthQty[r.art][r.mes]||0)+r.qty;
+      artDescMap[r.art]=r.desc;
+      artFornMap[r.art]=r.forn;
+    });
+    const artMedia = {};
+    Object.keys(artMonthQty).forEach(a=>{
+      artMedia[a]=Object.values(artMonthQty[a]).reduce((x,y)=>x+y,0)/12;
+    });
+
+    setLog('A calcular tendência 2026 vs 2025...', 50);
+
+    const q1_25={}, q1_26={};
+    v25.filter(r=>r.mes<=3).forEach(r=>{ q1_25[r.art]=(q1_25[r.art]||0)+r.qty; });
+    v26.filter(r=>r.mes<=3).forEach(r=>{ q1_26[r.art]=(q1_26[r.art]||0)+r.qty; });
+    const sumQ1_25=Object.values(q1_25).reduce((a,b)=>a+b,0)||1;
+    const sumQ1_26=Object.values(q1_26).reduce((a,b)=>a+b,0);
+    const globalTrend=sumQ1_26/sumQ1_25;
+    const artTrend={};
+    Object.keys(q1_25).forEach(a=>{
+      artTrend[a]=q1_25[a]>0?Math.min(Math.max((q1_26[a]||0)/q1_25[a],0.2),4.0):globalTrend;
+    });
+
+    setLog('A classificar artigos ABC...', 62);
+
+    const artVal={}, artQty25={};
+    v25.forEach(r=>{ artVal[r.art]=(artVal[r.art]||0)+r.val; artQty25[r.art]=(artQty25[r.art]||0)+r.qty; });
+    const artsSorted=Object.keys(artVal).sort((a,b)=>artVal[b]-artVal[a]);
+    const totalVal=Object.values(artVal).reduce((a,b)=>a+b,0)||1;
+    const abcMap={};
+    let cum=0;
+    artsSorted.forEach(a=>{ cum+=artVal[a]; abcMap[a]=cum/totalVal<=0.8?'A':cum/totalVal<=0.95?'B':'C'; });
+
+    setLog('A ler stock e encomendas abertas...', 72);
+
+    const r0_inv=rawInv[0]||{};
+    const colStock=findCol(r0_inv,['^stock$','existencias','exist'])||'Stock';
+    const colCusto=findCol(r0_inv,['custo','cost'])||'Custo';
+    const colArtInv=findCol(r0_inv,['^artigo$','art'])||'Artigo';
+    const invMap={}, costMap={};
+    rawInv.forEach(r=>{
+      const a=padArt(r[colArtInv]);
+      if(a.length===8&&!excFam(a)){
+        invMap[a]=(invMap[a]||0)+(parseFloat(String(r[colStock]).replace(',','.'))||0);
+        if(!costMap[a]) costMap[a]=parseFloat(String(r[colCusto]).replace(',','.'))||0;
+      }
+    });
+
+    const encMap={};
+    if(rawEnc.length>0){
+      const r0_enc=rawEnc[0]||{};
+      const encKeys=Object.keys(r0_enc);
+      const colCodEnc=encKeys.find(k=>/c.digo|artigo|descri/i.test(k));
+      const colQtyEnc=encKeys.find(k=>/pendente|qtd|quant/i.test(k));
+      if(colCodEnc&&colQtyEnc){
+        rawEnc.forEach(r=>{
+          const raw=String(r[colCodEnc]||'');
+          const a=padArt(raw.split(' - ')[0].split('-')[0].split(' ')[0]);
+          if(a.length===8&&!excFam(a)){
+            encMap[a]=(encMap[a]||0)+(parseFloat(String(r[colQtyEnc]).replace(',','.'))||0);
+          }
+        });
+      }
+    }
+
+    setLog('A calcular sugestões de encomenda...', 82);
+
+    const results=[];
+    artsSorted.forEach(art=>{
+      const media=artMedia[art]||0;
+      const trend=artTrend[art]||globalTrend;
+      const stock=invMap[art]||0;
+      const enc=encMap[art]||0;
+      const cost=costMap[art]||0;
+      const desc=artDescMap[art]||'';
+      const forn=artFornMap[art]||'Sem Fornecedor';
+      const abc=abcMap[art]||'C';
+
+      const prevs={};
+      WEEKS.forEach(w=>{
+        const artIS=artMonthQty[art]?((artMonthQty[art][w.month]||0)/(artMedia[art]||1)):globalIS[w.month];
+        const is=artMedia[art]>0?artIS:globalIS[w.month];
+        prevs[w.wk]=Math.max(0,Math.round(media/4.33*is*trend));
+      });
+
+      const maxPrev=Math.max(...Object.values(prevs),0);
+      const stockSeg=Math.round(maxPrev*(SAFETY_DAYS/7));
+      const prev0=prevs[0]||0;
+      const nec=prev0+stockSeg-stock-enc;
+      const sug=Math.max(0,Math.round(nec));
+      const val=parseFloat((sug*cost).toFixed(2));
+
+      let st='OK';
+      if(stock===0&&prev0>0) st='ROTURA';
+      else if(stock<stockSeg&&prev0>0) st='CRÍTICO';
+      else if(sug>0) st='ENCOMENDAR';
+      else if(stock>prev0*4&&prev0>0) st='EXCESSO';
+
+      if(['ROTURA','CRÍTICO','ENCOMENDAR'].includes(st)){
+        results.push({art,desc,forn,abc,stock,enc,sug,val,cost,st,prev0,stockSeg,prevs,val25:artVal[art]||0});
+      }
+    });
+
+    results.sort((a,b)=>{
+      if(a.forn!==b.forn) return a.forn.localeCompare(b.forn,'pt');
+      const po={'ROTURA':1,'CRÍTICO':2,'ENCOMENDAR':3};
+      if(po[a.st]!==po[b.st]) return po[a.st]-po[b.st];
+      return b.val25-a.val25;
+    });
+
+    resultData={results,globalTrend,globalIS};
+
+    setLog('A montar resultados...', 93);
+
+    const nRot=results.filter(r=>r.st==='ROTURA').length;
+    const nCrit=results.filter(r=>r.st==='CRÍTICO').length;
+    const nEnc=results.filter(r=>r.st==='ENCOMENDAR').length;
+    const nForn=new Set(results.map(r=>r.forn)).size;
+    const valTot=results.reduce((s,r)=>s+r.val,0);
+
+    document.getElementById('k-rot').textContent=nRot;
+    document.getElementById('k-crit').textContent=nCrit;
+    document.getElementById('k-enc').textContent=nEnc;
+    document.getElementById('k-forn').textContent=nForn;
+    document.getElementById('k-val').textContent='€'+Math.round(valTot).toLocaleString('pt-PT');
+
+    const tbody=document.getElementById('table-body');
+    tbody.innerHTML='';
+    let curForn=null;
+
+    results.forEach(r=>{
+      if(r.forn!==curForn){
+        const supRows=results.filter(x=>x.forn===r.forn);
+        const supVal=supRows.reduce((s,x)=>s+x.val,0);
+        const supRot=supRows.filter(x=>x.st==='ROTURA').length;
+        const supCrit=supRows.filter(x=>x.st==='CRÍTICO').length;
+        const tr=document.createElement('tr'); tr.className='sup-row';
+        tr.innerHTML=
+          `<td colspan="7" style="padding:8px 12px;font-size:11px;letter-spacing:.2px">
+             ${r.forn.substring(0,60)} <span style="opacity:.5;font-weight:400">(${supRows.length} artigos)</span>
+           </td>
+           <td class="sup-val" style="padding:8px 12px;font-size:11px">€${Math.round(supVal).toLocaleString('pt-PT')}</td>
+           <td class="sup-flags" style="padding:8px 12px;font-size:11px">
+             ${supRot>0?`<span style="color:#FCA5A5">●${supRot}</span> `:''}
+             ${supCrit>0?`<span style="color:#FCD34D">●${supCrit}</span>`:''}
+           </td>`;
+        tbody.appendChild(tr);
+        curForn=r.forn;
+      }
+
+      const st_class=r.st==='ROTURA'?'badge-rot':r.st==='CRÍTICO'?'badge-crit':'badge-enc';
+      const abc_class='abc-'+r.abc.toLowerCase();
+      const tr=document.createElement('tr');
+      tr.innerHTML=
+        `<td class="center"><span class="abc-badge ${abc_class}">${r.abc}</span></td>
+         <td class="art indent">${r.art}</td>
+         <td class="desc" title="${r.desc}">${r.desc}</td>
+         <td class="num ${r.stock===0?'stock-zero':''}">${r.stock.toLocaleString('pt-PT')}</td>
+         <td class="num" style="color:var(--text2)">${r.enc>0?r.enc.toLocaleString('pt-PT'):'—'}</td>
+         <td class="sug-val">${r.sug>0?r.sug.toLocaleString('pt-PT'):'—'}</td>
+         <td class="num">${r.val>0?'€'+r.val.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td>
+         <td class="center"><span class="badge ${st_class}">${r.st}</span></td>
+         <td class="center"><span class="confirm-s">${['ROTURA','CRÍTICO'].includes(r.st)?'S':''}</span></td>`;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('table-footer').textContent=
+      `${results.length} artigos · ${nForn} fornecedores · Stock segurança: ${SAFETY_DAYS} dias · Tendência Algarve 2026: ${Math.round(globalTrend*100)}% vs 2025 · Excluídas: famílias 00/90/99 e 6 fornecedores`;
+
+    setLog('Concluído', 100);
+    document.getElementById('results').style.display='block';
+    document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+
+  } catch(e) {
+    setLog('Erro: '+e.message, 0);
+    document.getElementById('btn-run').disabled=false;
+    console.error(e);
+  }
+}
+
+function downloadExcel() {
+  if(!resultData) return;
+  const {results, globalTrend} = resultData;
+  const today = new Date().toLocaleDateString('pt-PT');
+  const filename = 'EMPRO_Encomenda_'+new Date().toISOString().slice(0,10)+'.xlsx';
+
+  const wsData = [
+    ['EMPRO ALGARVE — LISTA DE ENCOMENDA — '+today],
+    ['Tendência 2026: '+Math.round(globalTrend*100)+'%  |  Stock segurança: '+SAFETY_DAYS+' dias  |  Excluídas: famílias 00/90/99  |  6 fornecedores excluídos'],
+    [],
+    ['ABC','Cód. Artigo','Descrição','Fornecedor','Stock Atual','Enc. Aberto',
+     'Prev Sem Atual','Stock Seg.','Qtd. Encomendar','Valor €','Custo Unit.','Status','Confirmado?','Obs.']
+  ];
+
+  let curF=null;
+  results.forEach(r=>{
+    if(r.forn!==curF){
+      const sr=results.filter(x=>x.forn===r.forn);
+      const sv=sr.reduce((s,x)=>s+x.val,0);
+      wsData.push(['','','  ▶ '+r.forn+' ('+sr.length+' artigos)',
+        '','','','','','','€'+sv.toFixed(2),'','','','']);
+      curF=r.forn;
+    }
+    wsData.push([r.abc,r.art,r.desc,r.forn,r.stock,r.enc,r.prev0,r.stockSeg,
+      r.sug||0,r.val>0?r.val:0,r.cost,r.st,
+      ['ROTURA','CRÍTICO'].includes(r.st)?'S':'','']);
+  });
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:4},{wch:11},{wch:42},{wch:32},{wch:10},{wch:10},{wch:10},
+               {wch:10},{wch:13},{wch:12},{wch:10},{wch:12},{wch:11},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'ENCOMENDA');
+
+  const kpiData=[['Indicador','Valor'],
+    ['Roturas',results.filter(r=>r.st==='ROTURA').length],
+    ['Críticos',results.filter(r=>r.st==='CRÍTICO').length],
+    ['A Encomendar',results.filter(r=>r.st==='ENCOMENDAR').length],
+    ['Total Artigos',results.length],
+    ['Fornecedores',new Set(results.map(r=>r.forn)).size],
+    ['Valor Total €',parseFloat(results.reduce((s,r)=>s+r.val,0).toFixed(2))],
+    ['Tendência 2026',Math.round(globalTrend*100)+'%'],
+    ['Gerado em',today]];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(kpiData),'RESUMO');
+  XLSX.writeFile(wb,filename);
+}
+
+function resetApp() {
+  files={};
+  resultData=null;
+  ['1','2','3','4'].forEach(id=>{
+    document.getElementById('zone'+id).classList.remove('loaded');
+    document.getElementById('f'+id+'-name').textContent='';
+    document.getElementById('f'+id).value='';
+  });
+  document.getElementById('results').style.display='none';
+  document.getElementById('btn-run').disabled=true;
+  document.getElementById('prog-bar').style.width='0%';
+  setLog('Carrega os 4 ficheiros para continuar');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+['1','2','3','4'].forEach(id=>{
+  document.getElementById('f'+id).addEventListener('change',e=>{
+    if(e.target.files[0]) setFile(id, e.target.files[0]);
+  });
+});
+</script>
+</body>
+</html>
